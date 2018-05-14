@@ -1,30 +1,26 @@
 import keras
 from keras.models import Sequential, load_model
 import numpy as np
+import panda as pd
+import time
+from keras import backend as K
+from keras.callbacks import EarlyStopping, TensorBoard,ReduceLROnPlateau
+from keras.optimizers import RMSprop, Adam, SGD,Nadam, Adamax
 import tensorflow as tf
 import os
 import random
 import matplotlib
-
-matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
 
-from helper import loader, utilty as util
-
-INPUT_IMAGE_DIR = "input"
+INPUT_IMAGE_DIR = "input_data"
 INTERPOLATED_IMAGE_DIR = "interpolated"
-TRUE_IMAGE_DIR = "true"
 
 class SuperResolution:
     def __init__(self, flags, model_name=""):
 
         # Model Parameters
-        self.filters = flags.filters
-        self.min_filters = flags.min_filters
-        self.nin_filters = flags.nin_filters
-        self.nin_filters2 = flags.nin_filters2 if flags.nin_filters2 != 0 else flags.nin_filters // 2
-        self.cnn_size = flags.cnn_size
+        
         self.last_cnn_size = flags.last_cnn_size
         self.cnn_stride = 1
         self.layers = flags.layers
@@ -118,12 +114,7 @@ class SuperResolution:
                 name += "_A%d" % self.nin_filters
                 if self.nin_filters2 != self.nin_filters // 2:
                     name += "_B%d" % self.nin_filters2
-            if self.bicubic_init:
-                name += "_BI"
-            if self.dropout != 1.0:
-                name += "_D%0.2f" % self.dropout
-            if self.max_value != 255.0:
-                name += "_M%2.1f" % self.max_value
+            
             if self.activator != "relu":
                 name += "_%s" % self.activator
             if self.dataset != "yang91":
@@ -343,6 +334,54 @@ class SuperResolution:
 
         return conv
 
+def my_loss_abs_error_pct(y_true, y_pred):
+mask = K.sign(y_true)
+abs_error = K.abs(y_true-y_pred) * mask
+print(abs_error)
+print(K.int_shape(abs_error))
+aa = K.constant(7.99, shape=K.int_shape(abs_error))
+abs_error_largerthan8db = K.sum(K.sign(abs_error - 7.99) + 1, axis=None)/2
+return abs_error_largerthan8db / K.sum(mask, axis=None)
+
+def unet(model_opt_idx, x_train, y_train, batch_size, optType, activation, lr, nfilter, kernel_size, myloss, epochs, patience):
+# def myModel_trail():
+    if K.image_data_format() == 'channels_first':
+        channel_axis = 1
+    else:
+        channel_axis = 3
+
+    # model = Sequential()
+    img_input = Input(shape=(50, 50,11))
+    x = conv2d_bn(img_input, nfilter[0], 3, 3, strides=(1, 1), padding='same')
+    conv1 = x
+    x = MaxPooling2D((3, 3), strides=(2, 2), padding='same')(x)
+
+  
+    branch1x1 = conv2d_bn(x, 8, 1, 1)
+    branch5x5 = conv2d_bn(x, 12, 1, 1)
+    branch5x5 = conv2d_bn(branch5x5, 24, 3, 3)
+    
+    branch3x3dbl = conv2d_bn(x, 8, 1, 1)
+    branch3x3dbl = conv2d_bn(branch3x3dbl, 16, 3, 3)
+    branch3x3dbl = conv2d_bn(branch3x3dbl, 16, 3, 3)
+    #
+    branch_pool = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(x)
+    branch_pool = conv2d_bn(branch_pool, 8, 1, 1)
+    x = layers.concatenate([branch1x1, branch5x5, branch3x3dbl, branch_pool], axis=channel_axis, name='mixed0')
+
+
+    branch1x1 = conv2d_bn(x, 8, 1, 1)
+    
+    branch5x5 = conv2d_bn(x, 12, 1, 1)
+    branch5x5 = conv2d_bn(branch5x5, 24, 3, 3)
+    branch3x3dbl = conv2d_bn(x, 8, 1, 1)
+    branch3x3dbl = conv2d_bn(branch3x3dbl, 16, 3, 3)
+    branch3x3dbl = conv2d_bn(branch3x3dbl, 16, 3, 3)
+    
+    branch_pool = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(x)
+    branch_pool = conv2d_bn(branch_pool, 8, 1, 1)
+    x = layers.concatenate([branch1x1, branch5x5, branch3x3dbl, branch_pool], axis=channel_axis, name='mixed1')
+    
     def build_optimizer(self):
 
         self.lr_input = tf.placeholder(tf.float32, shape=[], name="LearningRate")
