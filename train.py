@@ -7,9 +7,6 @@ import Super_resolution
 from keras.models import Sequential, load_model
 import numpy as np
 
-FLAGS = args.get()
-
-
 def main(not_parsed_args):
 	if len(not_parsed_args) > 1:
 		print("Unknown args:%s" % not_parsed_args)
