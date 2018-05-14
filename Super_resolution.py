@@ -154,13 +154,7 @@ class SuperResolution:
             datasets.load_batch_test(batch_dir)
             self.test = datasets
 
-    def init_epoch_index(self):
-
-        self.batch_index = random.sample(range(0, self.train.input.count), self.train.input.count)
-        self.index_in_epoch = 0
-        self.training_psnr_sum = 0
-        self.training_step = 0
-
+  
     def build_conv_and_bias(self, name, input_tensor, cnn_size, input_feature_num, output_feature_num, use_activator=True,
                             use_dropout=True):
         with tf.variable_scope(name):
@@ -200,21 +194,7 @@ class SuperResolution:
 
         return w, h
 
-    def build_input_batch(self,batch_dir):
-
-        for i in range(self.batch_num):
-            if self.index_in_epoch >= self.train.input.count:
-                self.init_epoch_index()
-                self.epochs_completed += 1
-
-            image_no = self.batch_index[self.index_in_epoch]
-            self.batch_input[i] = util.load_image(batch_dir + "/" + INPUT_IMAGE_DIR + "/%06d.bmp" % image_no, print_console=False)
-            batch_input_quad = util.load_image(batch_dir + "/" + INTERPOLATED_IMAGE_DIR + "/%06d.bmp" % image_no, print_console=False)
-            loader.convert_to_multi_channel_image(self.batch_input_quad[i], batch_input_quad, self.scale)
-            batch_true_quad = util.load_image(batch_dir + "/" + TRUE_IMAGE_DIR + "/%06d.bmp" % image_no, print_console=False)
-            loader.convert_to_multi_channel_image(self.batch_true_quad[i], batch_true_quad, self.scale)
-            self.index_in_epoch += 1
-
+    
     def build_graph(self):
 
         input_feature_num = self.channels
@@ -533,20 +513,7 @@ def unet(model_opt_idx, x_train, y_train, batch_size, optType, activation, lr, n
         self.summary_writer.add_summary(summary_str, 0)
         self.summary_writer.flush()
 
-    def print_status(self, mse):
-
-        psnr = util.get_psnr(mse, max_value=self.max_value)
-
-        if self.step == 0:
-            print("Initial MSE:%f PSNR:%f" % (mse, psnr))
-        else:
-            processing_time = (time.time() - self.start_time) / self.step
-            print("%s Step:%d MSE:%f PSNR:%f (Training PSNR:%0.3f)" % (
-                util.get_now_date(), self.step, mse, psnr, self.training_psnr_sum / self.training_step))
-            print("Epoch:%d (Step:%s) LR:%f (%2.3fsec/step) MinPSNR:%0.3f" % (
-                self.epochs_completed, "{:,}".format(self.step), self.lr, processing_time,
-                util.get_psnr(self.min_validation_mse)))
-
+  
     def print_weight_variables(self):
 
         for bias in self.B_conv:
@@ -686,18 +653,7 @@ def unet(model_opt_idx, x_train, y_train, batch_size, optType, activation, lr, n
             print("MSE:%f PSNR:%f" % (mse, util.get_psnr(mse)))
         return mse
 
-    def init_train_step(self):
-        self.lr = self.initial_lr
-        self.csv_epochs = []
-        self.csv_psnr = []
-        self.csv_training_psnr = []
-        self.epochs_completed = 0
-        self.min_validation_mse = -1
-        self.min_validation_epoch = -1
-        self.step = 0
-
-        self.start_time = time.time()
-
+    
     def end_train_step(self):
         self.total_time = time.time() - self.start_time
 
