@@ -1,10 +1,9 @@
-#Testing Environment: Python 3.6.1, tensorflow 1.3
-
-
+import keras
+from keras.models import Sequential, load_model
+from keras.layers import *
 import sys
 import tensorflow as tf
 import Super_resolution
-import keras
 from keras.models import Sequential, load_model
 import numpy as np
 
@@ -23,8 +22,6 @@ def main(not_parsed_args):
 	model.load_datasets("test", FLAGS.data_dir + "/" + FLAGS.test_dataset, FLAGS.batch_dir + "/" + FLAGS.test_dataset,
 	                    FLAGS.batch_image_size, FLAGS.stride_size)
 
-	model.build_graph()
-	model.build_optimizer()
 	model.build_summary_saver()
 	logging.info("\n" + str(sys.argv))
 	logging.info("Test Data:" + FLAGS.test_dataset + " Training Data:" + FLAGS.dataset)
